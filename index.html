@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Calendar 2025-2026</title>
+    <style>
+        @media print {
+            .no-print { display: none; }
+            .month-calendar { page-break-after: always; }
+            .month-calendar:last-child { page-break-after: auto; }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .month-selector {
+            margin: 0 10px;
+            padding: 8px 15px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .month-selector:hover {
+            background: #0056b3;
+        }
+        
+        .print-btn {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .print-btn:hover {
+            background: #218838;
+        }
+        
+        .month-calendar {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .month-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+        
+        .day-header {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .day-cell {
+            border: 1px solid #dee2e6;
+            min-height: 100px;
+            position: relative;
+            background: white;
+        }
+        
+        .day-number {
+            position: absolute;
+            top: 5px;
+            left: 8px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .event-input {
+            width: calc(100% - 10px);
+            height: 60px;
+            border: none;
+            resize: none;
+            margin: 25px 5px 5px 5px;
+            font-size: 11px;
+            background: transparent;
+            outline: none;
+            padding: 2px;
+        }
+        
+        .event-input:focus {
+            background: #f8f9fa;
+            border: 1px solid #007bff;
+            border-radius: 3px;
+        }
+        
+        .other-month {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+        
+        .today {
+            background: #e3f2fd;
+        }
+        
+        .weekend {
+            background: #fff3e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls no-print">
+        <h1>Event Calendar 2025-2026</h1>
+        <div>
+            <select id="monthSelector" class="month-selector" onchange="showMonth()">
+                <option value="0">Show All Months</option>
+            </select>
+            <button class="print-btn" onclick="window.print()">Print Calendar</button>
+            <button class="print-btn" onclick="clearAll()">Clear All Events</button>
+        </div>
+    </div>
+
+    <div id="calendars"></div>
+
+    <script>
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        let currentDate = new Date();
+        let startYear = 2025;
+        let endYear = 2026;
+        
+        function getDaysInMonth(year, month) {
+            return new Date(year, month + 1, 0).getDate();
+        }
+        
+        function getFirstDayOfMonth(year, month) {
+            return new Date(year, month, 1).getDay();
+        }
+        
+        function isToday(year, month, day) {
+            const today = new Date();
+            return today.getFullYear() === year && 
+                   today.getMonth() === month && 
+                   today.getDate() === day;
+        }
+        
+        function isWeekend(dayOfWeek) {
+            return dayOfWeek === 0 || dayOfWeek === 6;
+        }
+        
+        function createCalendar(year, month) {
+            const daysInMonth = getDaysInMonth(year, month);
+            const firstDay = getFirstDayOfMonth(year, month);
+            const daysInPrevMonth = getDaysInMonth(year, month - 1);
+            
+            let html = `
+                <div class="month-calendar" data-year="${year}" data-month="${month}">
+                    <div class="month-header">
+                        ${months[month]} ${year}
+                    </div>
+                    <div class="calendar-grid">
+            `;
+            
+            // Day headers
+            days.forEach(day => {
+                html += `<div class="day-header">${day}</div>`;
+            });
+            
+            // Previous month's trailing days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                html += `
+                    <div class="day-cell other-month">
+                        <div class="day-number">${day}</div>
+                        <textarea class="event-input" placeholder="Add event..."></textarea>
+                    </div>
+                `;
+            }
+            
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayOfWeek = (firstDay + day - 1) % 7;
+                let classes = 'day-cell';
+                
+                if (isToday(year, month, day)) classes += ' today';
+                if (isWeekend(dayOfWeek)) classes += ' weekend';
+                
+                html += `
+                    <div class="${classes}">
+                        <div class="day-number">${day}</div>
+                        <textarea class="event-input" placeholder="Add event..."></textarea>
+                    </div>
+                `;
+            }
+            
+            // Next month's leading days
+            const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+            const remainingCells = totalCells - firstDay - daysInMonth;
+            
+            for (let day = 1; day <= remainingCells; day++) {
+                html += `
+                    <div class="day-cell other-month">
+                        <div class="day-number">${day}</div>
+                        <textarea class="event-input" placeholder="Add event..."></textarea>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+        
+        function initializeCalendars() {
+            let html = '';
+            const selector = document.getElementById('monthSelector');
+            
+            for (let year = startYear; year <= endYear; year++) {
+                for (let month = 0; month < 12; month++) {
+                    if (year === 2025 && month < 8) continue; // Start from September 2025
+                    
+                    html += createCalendar(year, month);
+                    
+                    // Add option to selector
+                    const option = document.createElement('option');
+                    option.value = `${year}-${month}`;
+                    option.textContent = `${months[month]} ${year}`;
+                    selector.appendChild(option);
+                }
+            }
+            
+            document.getElementById('calendars').innerHTML = html;
+        }
+        
+        function showMonth() {
+            const selector = document.getElementById('monthSelector');
+            const selectedValue = selector.value;
+            const calendars = document.querySelectorAll('.month-calendar');
+            
+            if (selectedValue === '0') {
+                // Show all months
+                calendars.forEach(cal => {
+                    cal.style.display = 'block';
+                });
+            } else {
+                // Show only selected month
+                const [year, month] = selectedValue.split('-');
+                calendars.forEach(cal => {
+                    if (cal.dataset.year === year && cal.dataset.month === month) {
+                        cal.style.display = 'block';
+                    } else {
+                        cal.style.display = 'none';
+                    }
+                });
+            }
+        }
+        
+        function clearAll() {
+            if (confirm('Are you sure you want to clear all events?')) {
+                const inputs = document.querySelectorAll('.event-input');
+                inputs.forEach(input => {
+                    input.value = '';
+                });
+            }
+        }
+        
+        // Initialize the calendars when page loads
+        document.addEventListener('DOMContentLoaded', initializeCalendars);
+    </script>
+</body>
+</html>
