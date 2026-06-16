@@ -143,7 +143,9 @@
             </select>
             <button class="print-btn" onclick="window.print()">Print Calendar</button>
             <button class="print-btn" onclick="clearAll()">Clear All Events</button>
+            <button class="print-btn" style="background:#17a2b8;" onclick="fetchILYouthEvents()">Reload Events</button>
         </div>
+        <div id="fetch-status" style="margin-top:10px;font-size:13px;color:#555;"></div>
     </div>
 
     <div id="calendars"></div>
@@ -298,8 +300,87 @@
             }
         }
         
+        // Fetch events from ilyouth.org and populate calendar
+        async function fetchILYouthEvents() {
+            const statusEl = document.getElementById('fetch-status');
+            if (statusEl) statusEl.textContent = 'Loading events from ilyouth.org...';
+
+            // ilyouth.org uses The Events Calendar (WordPress/Tribe) plugin
+            // REST API endpoint: /wp-json/tribe/events/v1/events
+            const baseUrl = 'https://ilyouth.org/wp-json/tribe/events/v1/events';
+            const params = new URLSearchParams({
+                per_page: 100,
+                start_date: '2025-09-01',
+                end_date: '2026-12-31'
+            });
+
+            try {
+                const response = await fetch(`${baseUrl}?${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+
+                if (response.status === 403) {
+                    throw new Error('HTTP 403 Forbidden — ilyouth.org blocked the request. This may require authentication or CORS is not enabled for this endpoint.');
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const events = data.events || [];
+
+                if (events.length === 0) {
+                    if (statusEl) statusEl.textContent = 'No events found for the 2025-2026 period.';
+                    return;
+                }
+
+                // Map events onto calendar cells
+                events.forEach(event => {
+                    const startDate = new Date(event.start_date);
+                    const year = startDate.getFullYear();
+                    const month = startDate.getMonth();
+                    const day = startDate.getDate();
+
+                    const calEl = document.querySelector(`.month-calendar[data-year="${year}"][data-month="${month}"]`);
+                    if (!calEl) return;
+
+                    // Find the day cell matching this day number (only current-month cells)
+                    const dayCells = calEl.querySelectorAll('.day-cell:not(.other-month)');
+                    dayCells.forEach(cell => {
+                        const numEl = cell.querySelector('.day-number');
+                        if (numEl && parseInt(numEl.textContent) === day) {
+                            const textarea = cell.querySelector('.event-input');
+                            if (textarea) {
+                                const existing = textarea.value.trim();
+                                const eventTitle = event.title || event.name || 'Event';
+                                textarea.value = existing ? `${existing}\n${eventTitle}` : eventTitle;
+                            }
+                        }
+                    });
+                });
+
+                if (statusEl) statusEl.textContent = `Loaded ${events.length} event(s) from ilyouth.org.`;
+
+            } catch (err) {
+                console.error('Failed to fetch ilyouth.org events:', err);
+                if (statusEl) {
+                    statusEl.style.color = '#dc3545';
+                    statusEl.textContent = `Could not load events: ${err.message}`;
+                }
+            }
+        }
+
         // Initialize the calendars when page loads
-        document.addEventListener('DOMContentLoaded', initializeCalendars);
+        document.addEventListener('DOMContentLoaded', async () => {
+            initializeCalendars();
+            await fetchILYouthEvents();
+        });
     </script>
 </body>
 </html>
